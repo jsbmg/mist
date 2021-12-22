@@ -1,5 +1,10 @@
 # Example configuration 
 
+# Possible locations:
+# $HOME/.config/mist/mist.toml
+# $HOME/.config/mist.toml
+# $HOME/.mist.toml
+
 # The name of the synchronization profile.
 [sync] 
 
