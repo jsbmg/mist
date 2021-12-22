@@ -1,0 +1,19 @@
+# Example configuration 
+
+# The name of the synchronization profile.
+[sync] 
+
+# The directory to sync
+directory = "/home/alice/sync"
+
+# The ssh address to connect to.
+ssh_address = alice@127.0.0.1"
+
+# The gpg key id to encrypt the files with.
+gpg_id = "alice@emailprovider.com"
+
+temp_folder = "/tmp/sync-remote"
+
+# Optionally, specify a gpg program to use explicitly 
+# gpg_program = "/bin/qubes-gpg-client-wrapper" # on Qubes OS 
+gpg_program = "/bin/gpg"
