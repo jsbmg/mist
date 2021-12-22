@@ -17,7 +17,7 @@ use walkdir::WalkDir;
 
 pub mod config;
 
-use config::Config;
+use config::{ Config, load_configuration };
 
 // TODO: mode to encrypt directory recursively and use rsync for better performance
 // TODO: Add logging
@@ -256,32 +256,24 @@ async fn hash_metadata(path: &PathBuf) -> Option<u64> {
     Some(hash.finish())
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
-    let home = home_from_env().await.expect("$HOME variable not set.");
-    let cfg = config::load_configuration(&home, &args.profile)
-        .await
-        .expect("Missing configuration parameters");
-
-    let mut s = Session::connect(&cfg.sshaddr, KnownHosts::Strict).await?;
-    
+async fn run_mist(home: &PathBuf, cfg: &Config, args: &Args, s: &mut Session) 
+-> Result<(), Box<dyn std::error::Error>> {
     if args.push {
-        let tar_is = confirm_remote_exists(&mut s, &cfg.tar).await.unwrap();
+        let tar_is = confirm_remote_exists(s, &cfg.tar).await.unwrap();
         if tar_is && ! user_confirm("Remote storage exists: overwrite?",
             args.assumeyes) {
             return Ok(())
         }
-        push_remote(&mut s, &cfg).await?; 
+        push_remote(s, &cfg).await?; 
     } else if args.pull {
         let dir_is = confirm_local_exists(&home, &cfg.dir).await?;
         if dir_is && ! user_confirm("Local directory exists: overwrite?",
             args.assumeyes) {
             return Ok(())
         }
-        pull_remote(&mut s, &cfg).await?;
+        pull_remote(s, &cfg).await?;
     } else {
-        let far_hash = read_remote_file(&mut s, &cfg.tar_hash).await.ok();
+        let far_hash = read_remote_file(s, &cfg.tar_hash).await.ok();
         let near_hash = hash_metadata(&cfg.dir).await;
         if far_hash.is_some() && near_hash.is_some() {
             let near_hash = near_hash 
@@ -294,7 +286,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Ok(())
             }
         }
-        pull_remote(&mut s, &cfg).await?;
+        pull_remote(s, &cfg).await?;
         match unison(&cfg.dir, &cfg.temp, args.assumeyes).await? {
             true  => (),
             false => {
@@ -304,13 +296,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        push_remote(&mut s, &cfg).await?;
+        push_remote(s, &cfg).await?;
         match remove_dir_all(&cfg.temp) {
             Ok(()) => println!("Deleting temporary directory"),
             Err(e) => println!("Error deleting temporary directory: {}", e),
         }
     }
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+    let home = home_from_env().await.expect("$HOME variable not set.");
+    let cfg = load_configuration(&home, &args.profile)
+        .await
+        .expect("Missing configuration parameters");
+
+    let mut s = Session::connect(&cfg.sshaddr, KnownHosts::Strict).await?;
+    
+    run_mist(&home, &cfg, &args, &mut s).await?;
 
     s.close().await?;
+
     Ok(())
 }
