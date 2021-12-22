@@ -1,5 +1,5 @@
 use std::env::var;
-use std::fs::{ read_dir, read_to_string, remove_dir_all };
+use std::fs::{ read_dir, remove_dir_all };
 use std::hash::{ Hash, Hasher };
 use std::io::{ stdin, Write };
 use std::path::PathBuf;
@@ -14,6 +14,10 @@ use tokio::io::{ AsyncReadExt, AsyncWriteExt };
 use toml::Value;
 use twox_hash::XxHash64;
 use walkdir::WalkDir;
+
+pub mod config;
+
+use config::Config;
 
 // TODO: mode to encrypt directory recursively and use rsync for better performance
 // TODO: Add logging
@@ -198,96 +202,6 @@ async fn push_remote(s: &mut Session, cfg: &Config)
     Ok(())
 }
 
-/// Load the configuration file and unpack its values.
-/// 
-/// The following locations are checked:
-/// 1. $HOME/.config/mist/mist.toml
-/// 2. $HOME/.config/mist.toml
-/// 3. $HOME/.mist.toml 
-///
-/// The configuration file has the following parameters. 
-/// [<profile-name>]            
-/// folder = "/path/to/sync/folder"  (folder to sync)
-/// ssh_address = "user@host" (remote ssh address to sync with)
-/// gpg_id = "youremail@yourprovider.com" (gpg id to encrypt with)
-/// temp_folder    = "/tmp/sync-folder" (temp folder location)
-///
-/// Note that multiple profiles are allowed and the profile to use at runtime 
-/// is specified as a required argument.
-async fn load_configuration(home: &PathBuf, profile: &str) 
--> Result<Config, Box<dyn std::error::Error>> {
-    let toml = std::fs::read_to_string(home.join(".config/mist/mist.toml"))
-        .or(read_to_string(home.join(".config/mist.toml")))
-        .or(read_to_string(home.join("mist.toml")))
-        .expect("No configuration file found.");
-
-    let values: Value = toml::from_str(&toml)?;  
-
-    // Check the configuration file is populated correctly 
-    let cfg = match values.get(profile) {
-        Some(x) => x,
-        None => {
-            println!("Configuration error: profile [{}] not found", &profile);
-            panic!();
-        }
-    };
-
-    for x in ["folder", "ssh_address", "gpg_id", "temp_folder"] {
-        match cfg.get(x) {
-            Some(_) => (),
-            None => { 
-                println!("Configuration error: profile [{}] missing '{}' entry", 
-                         &profile, x);
-            }
-        }  
-    };
-
-    let dir = &cfg
-        .get("folder")
-        .unwrap()
-        .as_str()
-        .ok_or("Can't parse 'sync folder' value as str")?;
-    let sshaddr = &cfg
-        .get("ssh_address")
-        .unwrap()
-        .as_str()
-        .ok_or("Can't parse 'remote_address' value as str")?;
-    let gpgid = &cfg
-        .get("gpg_id")
-        .unwrap()
-        .as_str()
-        .ok_or("Can't parse 'gpg_recipient' value as str")?;
-    let tmp = &cfg
-        .get("temp_folder")
-        .unwrap()
-        .as_str()
-        .ok_or("Can't parse 'temp_folder' value as str")?;
-    
-    let tar = PathBuf::from(&tmp)
-        .with_extension("tar.gz.gpg");
-    let tar_hash = PathBuf::from(&tar)
-        .with_extension("gpg.xxhash");
-    let tar_hash = &tar_hash
-        .file_name().unwrap()
-        .to_str().unwrap();
-    let tar = &tar
-        .file_name().unwrap()
-        .to_str().unwrap();
-
-    let gpgbin = cfg
-        .get("gpg_program").to_owned(); 
-
-    let config = Config {
-        dir: PathBuf::from(dir),
-        sshaddr: sshaddr.to_string(),
-        gpg_id: gpgid.to_string(), 
-        temp: PathBuf::from(tmp),
-        tar: tar.to_string(),
-        tar_hash: tar_hash.to_string(),
-        gpg_bin: gpgbin.cloned(),
-    };
-    Ok(config)
-}
 
 /// Returns the path specified by the $HOME environmental variable, if set.
 async fn home_from_env() -> Option<PathBuf> {
@@ -342,21 +256,11 @@ async fn hash_metadata(path: &PathBuf) -> Option<u64> {
     Some(hash.finish())
 }
 
-struct Config {
-    dir: PathBuf,
-    sshaddr: String,
-    temp: PathBuf,
-    gpg_id: String,
-    tar: String,
-    tar_hash: String,
-    gpg_bin: Option<Value>,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let home = home_from_env().await.expect("$HOME variable not set.");
-    let cfg = load_configuration(&home, &args.profile)
+    let cfg = config::load_configuration(&home, &args.profile)
         .await
         .expect("Missing configuration parameters");
 
