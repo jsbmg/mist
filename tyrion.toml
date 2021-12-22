@@ -7,7 +7,7 @@
 directory = "/home/alice/sync"
 
 # The ssh address to connect to.
-ssh_address = alice@127.0.0.1"
+ssh_address = "alice@127.0.0.1"
 
 # The gpg key id to encrypt the files with.
 gpg_id = "alice@emailprovider.com"
