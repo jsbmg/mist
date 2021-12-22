@@ -201,9 +201,9 @@ async fn push_remote(s: &mut Session, cfg: &Config)
 /// Load the configuration file and unpack its values.
 /// 
 /// The following locations are checked:
-/// 1. $HOME/.config/tyrion/tyrion.toml
-/// 2. $HOME/.config/tyrion.toml
-/// 3. $HOME/.tyrion.toml 
+/// 1. $HOME/.config/mist/mist.toml
+/// 2. $HOME/.config/mist.toml
+/// 3. $HOME/.mist.toml 
 ///
 /// The configuration file has the following parameters. 
 /// [<profile-name>]            
@@ -216,9 +216,9 @@ async fn push_remote(s: &mut Session, cfg: &Config)
 /// is specified as a required argument.
 async fn load_configuration(home: &PathBuf, profile: &str) 
 -> Result<Config, Box<dyn std::error::Error>> {
-    let toml = std::fs::read_to_string(home.join(".config/tyrion/tyrion.toml"))
-        .or(read_to_string(home.join(".config/tyrion.toml")))
-        .or(read_to_string(home.join("tyrion.toml")))
+    let toml = std::fs::read_to_string(home.join(".config/mist/mist.toml"))
+        .or(read_to_string(home.join(".config/mist.toml")))
+        .or(read_to_string(home.join("mist.toml")))
         .expect("No configuration file found.");
 
     let values: Value = toml::from_str(&toml)?;  
