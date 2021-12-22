@@ -187,7 +187,7 @@ async fn pull_remote(s: &mut Session, cfg: &Config)
 /// Write archive of the sync directory and its hash to the remote file system.
 async fn push_remote(s: &mut Session, cfg: &Config)
 -> Result<(), Box<dyn std::error::Error>> {                       
-    let hash = Hash_metadata(&cfg.dir).await;
+    let hash = hash_metadata(&cfg.dir).await;
     let tar = create_tar(&cfg.dir).await?;
     let tar = encrypt(&tar, &cfg.gpg_id, &cfg.gpg_bin).await?;
     scp_write(&tar, &cfg.tar, &cfg.sshaddr).await?;  
