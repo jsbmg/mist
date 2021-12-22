@@ -251,7 +251,6 @@ async fn hash_metadata(path: &PathBuf) -> Option<u64> {
             continue
         }
         let meta = e.metadata().ok()?;    
-        println!("{:?}", e.path().file_name());
         e.path().file_name()?.hash(&mut hash);
         meta.len().hash(&mut hash);
         // meta.modified().ok()?.hash(&mut hash); 
