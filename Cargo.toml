@@ -1,0 +1,18 @@
+[package]
+name = "tyrion"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "3.0.0-rc.7", features = ["derive"] }
+flate2 = "1.0.22"
+gpgme = "0.10.0"
+log =  "0.4.14"
+openssh = "0.8.1"
+tar = "0.4.38"
+tokio = { version = "1.14.0", features = ["macros", "rt-multi-thread"] }
+toml = "0.5.8"
+twox-hash = "1.6.1"
+walkdir = "2.3.2"
