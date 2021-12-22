@@ -244,7 +244,9 @@ fn user_confirm(prompt: &str, assume_yes: bool) -> bool {
 /// Hash the metadata of the contents of a directory. 
 async fn hash_metadata(path: &PathBuf) -> Option<u64> {
     let mut hash = XxHash64::with_seed(42);
-    for e in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+    for e in WalkDir::new(path)
+        .sort_by_file_name()
+        .into_iter().filter_map(|e| e.ok()) {
         if ! e.path().is_file() {
             continue
         }
