@@ -2,7 +2,7 @@ use std::env::var;
 use std::fs::{ read_dir, remove_dir_all };
 use std::hash::{ Hash, Hasher };
 use std::io::{ stdin, Write };
-use std::path::PathBuf;
+use std::path::{ Path, PathBuf };
 use std::process::{ Command, Stdio };
 
 use clap::Parser;
@@ -26,7 +26,7 @@ use config::{ Config, load_configuration };
 // TODO: Split this in to several files
 
 /// Test whether the local sync directory exists. 
-async fn confirm_local_exists(home: &PathBuf, dir: &PathBuf) 
+async fn confirm_local_exists(home: &Path, dir: &Path) 
 -> std::io::Result<bool> {
     for f in read_dir(home)? {
         let path = match f {
@@ -34,7 +34,7 @@ async fn confirm_local_exists(home: &PathBuf, dir: &PathBuf)
             Err(_) => continue,
         };
         let path = path.path();
-        if &path == dir && path.is_dir() {
+        if path == dir && path.is_dir() {
             return Ok(true)
         }
     }
@@ -42,7 +42,7 @@ async fn confirm_local_exists(home: &PathBuf, dir: &PathBuf)
 }
 
 /// Call Unison on the local and remote folder.
-async fn unison(local: &PathBuf, remote: &PathBuf, batch: bool) 
+async fn unison(local: &Path, remote: &Path, batch: bool) 
 -> Result<bool, std::io::Error> {
     let mut cmd = Command::new("unison");
     if batch {
@@ -71,7 +71,7 @@ async fn read_remote_file(s: &mut Session, file: &str)
 }
 
 /// Decrypt the remote archive's data.
-async fn decrypt(bytes: &Vec<u8>, gpgbin: &Option<Value>) 
+async fn decrypt(bytes: &[u8], gpgbin: &Option<Value>) 
 -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut ctx = Context::from_protocol(Protocol::OpenPgp)?;
     match gpgbin {
@@ -85,16 +85,16 @@ async fn decrypt(bytes: &Vec<u8>, gpgbin: &Option<Value>)
 }
 
 /// Unpack tar data and write the folder to disk.
-async fn unpack_tar(bytes: &Vec<u8>, dest: &PathBuf) 
+async fn unpack_tar(bytes: &[u8], dest: &Path) 
 -> Result<(), std::io::Error> {
-    let dec = GzDecoder::new(&bytes[..]);
+    let dec = GzDecoder::new(bytes);
     let mut tar = Archive::new(dec);
     tar.unpack(dest)?;
     Ok(())
 }
 
 /// Create a compressed and archived sync folder. 
-async fn create_tar(source: &PathBuf) -> Result<Vec<u8>, std::io::Error> {
+async fn create_tar(source: &Path) -> Result<Vec<u8>, std::io::Error> {
     let enc= GzEncoder::new(Vec::new(), Compression::default());
     let mut tar = Builder::new(enc);
     tar.append_dir_all("", source)?;
@@ -104,7 +104,7 @@ async fn create_tar(source: &PathBuf) -> Result<Vec<u8>, std::io::Error> {
 }
 
 /// Encrypt data with the given GPG key.
-async fn encrypt(bytes: &Vec<u8>, gpgid: &str, gpgbin: &Option<Value>) 
+async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>) 
 -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut ctx = Context::from_protocol(Protocol::OpenPgp)?;
     match gpgbin {
@@ -123,7 +123,7 @@ async fn encrypt(bytes: &Vec<u8>, gpgid: &str, gpgbin: &Option<Value>)
 }
 
 /// Write the archive of the sync directory to the remote filesystem.
-async fn write_remote_file(s: &mut Session, bytes: &Vec<u8>, dest: &str) 
+async fn write_remote_file(s: &mut Session, bytes: &[u8], dest: &str) 
 -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = s.command("dd")
             .stdin(Stdio::piped())
@@ -134,7 +134,6 @@ async fn write_remote_file(s: &mut Session, bytes: &Vec<u8>, dest: &str)
         .as_mut()
         .ok_or("Remote: dd: Unable to pipe to stdin")?;
     stdin.write_all(bytes).await?;
-    drop(stdin);
     let status = cmd.wait().await?;
     match status.code() {
         Some(0) => println!("dd: {} to remote host", &dest),
@@ -160,7 +159,7 @@ async fn confirm_remote_exists(s: &mut Session, file: &str)
     }
 }
 
-async fn scp_write(bytes: &Vec<u8>, dest: &str, sshaddr: &str) -> std::io::Result<()> {
+async fn scp_write(bytes: &[u8], dest: &str, sshaddr: &str) -> std::io::Result<()> {
     let mut f = std::fs::File::create(dest)?;
     f.write_all(bytes)?;
     let cmd = std::process::Command::new("rsync")
@@ -233,16 +232,11 @@ fn user_confirm(prompt: &str, assume_yes: bool) -> bool {
     println!("{}", prompt);
     let mut inpt = String::new();
     stdin().read_line(&mut inpt).expect("Failed to read line");
-    match inpt.trim() {
-        "y" => return true,
-        "Y" => true,
-        "yes" => true,
-        _ => false, 
-    }
+    matches!(inpt.trim(), "y" | "Y" | "yes") 
 }
 
 /// Hash the metadata of the contents of a directory. 
-async fn hash_metadata(path: &PathBuf) -> Option<u64> {
+async fn hash_metadata(path: &Path) -> Option<u64> {
     let mut hash = XxHash64::with_seed(42);
     for e in WalkDir::new(path)
         .sort_by_file_name()
@@ -253,12 +247,11 @@ async fn hash_metadata(path: &PathBuf) -> Option<u64> {
         let meta = e.metadata().ok()?;    
         e.path().file_name()?.hash(&mut hash);
         meta.len().hash(&mut hash);
-        // meta.modified().ok()?.hash(&mut hash); 
     }
     Some(hash.finish())
 }
 
-async fn run_mist(home: &PathBuf, cfg: &Config, args: &Args, s: &mut Session) 
+async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session) 
 -> Result<(), Box<dyn std::error::Error>> {
     if args.push {
         let tar_is = confirm_remote_exists(s, &cfg.tar).await.unwrap();
@@ -266,14 +259,14 @@ async fn run_mist(home: &PathBuf, cfg: &Config, args: &Args, s: &mut Session)
             args.assumeyes) {
             return Ok(())
         }
-        push_remote(s, &cfg).await?; 
+        push_remote(s, cfg).await?; 
     } else if args.pull {
-        let dir_is = confirm_local_exists(&home, &cfg.dir).await?;
+        let dir_is = confirm_local_exists(home, &cfg.dir).await?;
         if dir_is && ! user_confirm("Local directory exists: overwrite?",
             args.assumeyes) {
             return Ok(())
         }
-        pull_remote(s, &cfg).await?;
+        pull_remote(s, cfg).await?;
     } else {
         let far_hash = read_remote_file(s, &cfg.tar_hash).await.ok();
         let near_hash = hash_metadata(&cfg.dir).await;
@@ -288,7 +281,7 @@ async fn run_mist(home: &PathBuf, cfg: &Config, args: &Args, s: &mut Session)
                 return Ok(())
             }
         }
-        pull_remote(s, &cfg).await?;
+        pull_remote(s, cfg).await?;
         match unison(&cfg.dir, &cfg.temp, args.assumeyes).await? {
             true  => (),
             false => {
@@ -298,7 +291,7 @@ async fn run_mist(home: &PathBuf, cfg: &Config, args: &Args, s: &mut Session)
                 }
             }
         }
-        push_remote(s, &cfg).await?;
+        push_remote(s, cfg).await?;
         match remove_dir_all(&cfg.temp) {
             Ok(()) => println!("Deleting temporary directory"),
             Err(e) => println!("Error deleting temporary directory: {}", e),

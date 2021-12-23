@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{ Path, PathBuf };
 use std::fs::{ read_to_string };
 
 
@@ -30,11 +30,11 @@ pub struct Config {
 ///
 /// Note that multiple profiles are allowed and the profile to use at runtime 
 /// is specified as a required argument.
-pub async fn load_configuration(home: &PathBuf, profile: &str) 
+pub async fn load_configuration(home: &Path, profile: &str) 
 -> Result<Config, Box<dyn std::error::Error>> {
     let toml = std::fs::read_to_string(home.join(".config/mist/mist.toml"))
-        .or(read_to_string(home.join(".config/mist.toml")))
-        .or(read_to_string(home.join("mist.toml")))
+        .or_else(|_| read_to_string(home.join(".config/mist.toml")))
+        .or_else(|_| read_to_string(home.join("mist.toml")))
         .expect("No configuration file found.");
 
     let values: Value = toml::from_str(&toml)?;  
