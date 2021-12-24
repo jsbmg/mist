@@ -21,9 +21,6 @@ use config::{ Config, load_configuration };
 
 // TODO: mode to encrypt directory recursively and use rsync for better performance
 // TODO: Add logging
-// TODO: Create a cli run function to clean up main
-// TODO: Improve error handling where necessary
-// TODO: Split this in to several files
 
 /// Test whether the local sync directory exists.
 async fn confirm_local_exists(home: &Path, dir: &Path)
