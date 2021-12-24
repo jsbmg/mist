@@ -25,8 +25,8 @@ use config::{ Config, load_configuration };
 // TODO: Improve error handling where necessary
 // TODO: Split this in to several files
 
-/// Test whether the local sync directory exists. 
-async fn confirm_local_exists(home: &Path, dir: &Path) 
+/// Test whether the local sync directory exists.
+async fn confirm_local_exists(home: &Path, dir: &Path)
 -> std::io::Result<bool> {
     for f in read_dir(home)? {
         let path = match f {
@@ -42,16 +42,16 @@ async fn confirm_local_exists(home: &Path, dir: &Path)
 }
 
 /// Call Unison on the local and remote folder.
-async fn unison(local: &Path, remote: &Path, batch: bool) 
+async fn unison(local: &Path, remote: &Path, batch: bool)
 -> Result<bool, std::io::Error> {
     let mut cmd = Command::new("unison");
     if batch {
-        cmd 
+        cmd
             .arg(local)
             .arg(remote)
             .arg("-batch");
     } else {
-        cmd 
+        cmd
             .arg(local)
             .arg(remote);
     };
@@ -60,7 +60,7 @@ async fn unison(local: &Path, remote: &Path, batch: bool)
 }
 
 /// Get the contents of a remote file.
-async fn read_remote_file(s: &mut Session, file: &str) 
+async fn read_remote_file(s: &mut Session, file: &str)
 -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut sftp = s.sftp();
     let mut f = sftp.read_from(file).await?;
@@ -71,7 +71,7 @@ async fn read_remote_file(s: &mut Session, file: &str)
 }
 
 /// Decrypt the remote archive's data.
-async fn decrypt(bytes: &[u8], gpgbin: &Option<Value>) 
+async fn decrypt(bytes: &[u8], gpgbin: &Option<Value>)
 -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut ctx = Context::from_protocol(Protocol::OpenPgp)?;
     match gpgbin {
@@ -85,7 +85,7 @@ async fn decrypt(bytes: &[u8], gpgbin: &Option<Value>)
 }
 
 /// Unpack tar data and write the folder to disk.
-async fn unpack_tar(bytes: &[u8], dest: &Path) 
+async fn unpack_tar(bytes: &[u8], dest: &Path)
 -> Result<(), std::io::Error> {
     let dec = GzDecoder::new(bytes);
     let mut tar = Archive::new(dec);
@@ -93,7 +93,7 @@ async fn unpack_tar(bytes: &[u8], dest: &Path)
     Ok(())
 }
 
-/// Create a compressed and archived sync folder. 
+/// Create a compressed and archived sync folder.
 async fn create_tar(source: &Path) -> Result<Vec<u8>, std::io::Error> {
     let enc= GzEncoder::new(Vec::new(), Compression::default());
     let mut tar = Builder::new(enc);
@@ -104,14 +104,14 @@ async fn create_tar(source: &Path) -> Result<Vec<u8>, std::io::Error> {
 }
 
 /// Encrypt data with the given GPG key.
-async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>) 
+async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>)
 -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut ctx = Context::from_protocol(Protocol::OpenPgp)?;
     match gpgbin {
         Some(x) => { let _ = ctx.set_engine_path(x
                           .as_str()
                           .unwrap()
-                          .to_string()); 
+                          .to_string());
                    },
         None => (),
     }
@@ -123,10 +123,11 @@ async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>)
 }
 
 /// Write the archive of the sync directory to the remote filesystem.
-async fn write_remote_file(s: &mut Session, bytes: &[u8], dest: &str) 
+async fn write_remote_file(s: &mut Session, bytes: &[u8], dest: &str)
 -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = s.command("dd")
             .stdin(Stdio::piped())
+            .arg("status=progress")
             .arg(format!("of={}", dest))
             .spawn()?;
     let stdin = cmd
@@ -138,13 +139,13 @@ async fn write_remote_file(s: &mut Session, bytes: &[u8], dest: &str)
     match status.code() {
         Some(0) => println!("dd: {} to remote host", &dest),
         None => println!("Warning: dd {} on remote host: no exit code", &dest),
-        _ => println!("Warning: dd: {} to remote host failed", &dest) 
+        _ => println!("Warning: dd: {} to remote host failed", &dest)
     }
     Ok(())
 }
 
 /// Test whether a file exists on the remote filesystem.
-async fn confirm_remote_exists(s: &mut Session, file: &str) 
+async fn confirm_remote_exists(s: &mut Session, file: &str)
     -> Result<bool, Box<dyn std::error::Error>> {
     let cmd = s.command("test")
             .arg("-f")
@@ -154,7 +155,7 @@ async fn confirm_remote_exists(s: &mut Session, file: &str)
     match cmd.code() {
         Some(0) => Ok(true),
         Some(1) => Ok(false),
-        Some(_) => Err(format!("{:?}", &cmd).into()), 
+        Some(_) => Err(format!("{:?}", &cmd).into()),
         None    => Err("Remote: 'test': no exit code".into()),
     }
 }
@@ -174,8 +175,8 @@ async fn scp_write(bytes: &[u8], dest: &str, sshaddr: &str) -> std::io::Result<(
 }
 
 /// Download the remote archive and unpack it to a location on disk.
-async fn pull_remote(s: &mut Session, cfg: &Config) 
--> Result<(), Box<dyn std::error::Error>> {                         
+async fn pull_remote(s: &mut Session, cfg: &Config)
+-> Result<(), Box<dyn std::error::Error>> {
     println!("Pulling from remote...");
     let tar = read_remote_file(s, &cfg.tar).await?;
     let tar = decrypt(&tar, &cfg.gpg_bin).await?;
@@ -184,17 +185,20 @@ async fn pull_remote(s: &mut Session, cfg: &Config)
 }
 
 /// Write archive of the sync directory and its hash to the remote file system.
-async fn push_remote(s: &mut Session, cfg: &Config)
--> Result<(), Box<dyn std::error::Error>> {                       
+async fn push_remote(s: &mut Session, cfg: &Config, args: &Args)
+-> Result<(), Box<dyn std::error::Error>> {
     let hash = hash_metadata(&cfg.dir).await;
     let tar = create_tar(&cfg.dir).await?;
     let tar = encrypt(&tar, &cfg.gpg_id, &cfg.gpg_bin).await?;
-    scp_write(&tar, &cfg.tar, &cfg.sshaddr).await?;  
-    // write_remote_file(s, &tar, cfg.tar).await?; 
+    if args.scpwrite {
+        scp_write(&tar, &cfg.tar, &cfg.sshaddr).await?;
+    } else {
+        write_remote_file(s, &tar, &cfg.tar).await?;
+    }
     match hash {
-        Some(x) => { 
-            let bytes: Vec<u8> = x.to_be_bytes().to_vec(); 
-            write_remote_file(s, &bytes, &cfg.tar_hash).await?; 
+        Some(x) => {
+            let bytes: Vec<u8> = x.to_be_bytes().to_vec();
+            write_remote_file(s, &bytes, &cfg.tar_hash).await?;
         }
         None => println!("Error hashing the sync folder."),
     }
@@ -205,7 +209,7 @@ async fn push_remote(s: &mut Session, cfg: &Config)
 /// Returns the path specified by the $HOME environmental variable, if set.
 async fn home_from_env() -> Option<PathBuf> {
     let home_env = var("HOME").ok()?;
-    Some(PathBuf::from(home_env)) 
+    Some(PathBuf::from(home_env))
 }
 
 #[derive(Parser, Debug)]
@@ -219,9 +223,12 @@ struct Args {
     #[clap(short('P'), long("pull"), takes_value(false), conflicts_with("push"),
            help("Copy remote to local without syncing, overwriting local if it exists"))]
     pull: bool,
-    #[clap(short('y'), long("assume-yes"), takes_value(false), 
+    #[clap(short('y'), long("assume-yes"), takes_value(false),
            help("Assume yes to all prompts and run with no interaction"))]
     assumeyes: bool,
+    #[clap(short('s'), long("scp-write"), takes_value(false),
+           help("Write remote files using scp (shows progress)"))]
+    scpwrite: bool,
 }
 
 /// Ask for user confirmation, return true if confirmation recieved or false if not.
@@ -232,10 +239,10 @@ fn user_confirm(prompt: &str, assume_yes: bool) -> bool {
     println!("{}", prompt);
     let mut inpt = String::new();
     stdin().read_line(&mut inpt).expect("Failed to read line");
-    matches!(inpt.trim(), "y" | "Y" | "yes") 
+    matches!(inpt.trim(), "y" | "Y" | "yes")
 }
 
-/// Hash the metadata of the contents of a directory. 
+/// Hash the metadata of the contents of a directory.
 async fn hash_metadata(path: &Path) -> Option<u64> {
     let mut hash = XxHash64::with_seed(42);
     for e in WalkDir::new(path)
@@ -244,14 +251,14 @@ async fn hash_metadata(path: &Path) -> Option<u64> {
         if ! e.path().is_file() {
             continue
         }
-        let meta = e.metadata().ok()?;    
+        let meta = e.metadata().ok()?;
         e.path().file_name()?.hash(&mut hash);
         meta.len().hash(&mut hash);
     }
     Some(hash.finish())
 }
 
-async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session) 
+async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session)
 -> Result<(), Box<dyn std::error::Error>> {
     if args.push {
         let tar_is = confirm_remote_exists(s, &cfg.tar).await.unwrap();
@@ -259,7 +266,7 @@ async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session)
             args.assumeyes) {
             return Ok(())
         }
-        push_remote(s, cfg).await?; 
+        push_remote(s, cfg, args).await?;
     } else if args.pull {
         let dir_is = confirm_local_exists(home, &cfg.dir).await?;
         if dir_is && ! user_confirm("Local directory exists: overwrite?",
@@ -271,11 +278,11 @@ async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session)
         let far_hash = read_remote_file(s, &cfg.tar_hash).await.ok();
         let near_hash = hash_metadata(&cfg.dir).await;
         if far_hash.is_some() && near_hash.is_some() {
-            let near_hash = near_hash 
+            let near_hash = near_hash
                 .unwrap()
                 .to_be_bytes();
-            let far_hash = far_hash 
-                .unwrap(); 
+            let far_hash = far_hash
+                .unwrap();
             if far_hash == near_hash {
                 println!("Already up to date");
                 return Ok(())
@@ -291,7 +298,7 @@ async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session)
                 }
             }
         }
-        push_remote(s, cfg).await?;
+        push_remote(s, cfg, args).await?;
         match remove_dir_all(&cfg.temp) {
             Ok(()) => println!("Deleting temporary directory"),
             Err(e) => println!("Error deleting temporary directory: {}", e),
@@ -309,7 +316,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Missing configuration parameters");
 
     let mut s = Session::connect(&cfg.sshaddr, KnownHosts::Strict).await?;
-    
+
     run_mist(&home, &cfg, &args, &mut s).await?;
 
     s.close().await?;
