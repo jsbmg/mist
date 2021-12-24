@@ -63,16 +63,19 @@ pub async fn load_configuration(home: &Path, profile: &str)
         .unwrap()
         .as_str()
         .ok_or("Can't parse 'sync folder' value as str")?;
+
     let sshaddr = &cfg
         .get("ssh_address")
         .unwrap()
         .as_str()
         .ok_or("Can't parse 'remote_address' value as str")?;
+
     let gpgid = &cfg
         .get("gpg_id")
         .unwrap()
         .as_str()
         .ok_or("Can't parse 'gpg_recipient' value as str")?;
+
     let tmp = &cfg
         .get("temp_folder")
         .unwrap()
@@ -81,11 +84,14 @@ pub async fn load_configuration(home: &Path, profile: &str)
     
     let tar = PathBuf::from(&tmp)
         .with_extension("tar.gz.gpg");
+
     let tar_hash = PathBuf::from(&tar)
         .with_extension("gpg.xxhash");
+
     let tar_hash = &tar_hash
         .file_name().unwrap()
         .to_str().unwrap();
+
     let tar = &tar
         .file_name().unwrap()
         .to_str().unwrap();
