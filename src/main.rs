@@ -19,9 +19,6 @@ pub mod config;
 
 use config::{ Config, load_configuration };
 
-// TODO: mode to encrypt directory recursively and use rsync for better performance
-// TODO: Add logging
-
 /// Test whether the local sync directory exists.
 async fn confirm_local_exists(home: &Path, dir: &Path)
 -> std::io::Result<bool> {
