@@ -116,7 +116,7 @@ async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>)
     Ok(b)
 }
 
-/// Write the archive of the sync directory to the remote filesystem.
+/// Write bytes to a file on the remote system. 
 async fn write_remote_file(s: &mut Session, bytes: &[u8], dest: &str)
 -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = s.command("dd")
@@ -154,6 +154,11 @@ async fn confirm_remote_exists(s: &mut Session, file: &str)
     }
 }
 
+/// Alternative to write_remote_file() for writing files over SSH, which
+/// uses dd. This doesn't utilize the openssh Rust bindings but just
+/// calls scp directly, which provides some progress information.
+/// Only needs to be used if the other method isn't working or the 
+/// transfer time is long enough that it warrants progress updates.
 async fn scp_write(bytes: &[u8], dest: &str, sshaddr: &str) -> std::io::Result<()> {
     let mut f = std::fs::File::create(dest)?;
     f.write_all(bytes)?;
