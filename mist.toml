@@ -9,16 +9,16 @@
 [sync] 
 
 # The directory to sync
-directory = "/home/alice/sync"
+directory = "/home/user/sync"
 
 # The ssh address to connect to
-ssh_address = "alice@127.0.0.1"
+ssh_address = "user@host"
 
 # The gpg key id to encrypt the files with
-gpg_id = "alice@emailprovider.com"
+gpg_id = "user@email.com"
 
-temp_folder = "/tmp/sync-remote"
+temp_folder = "/tmp/sync"
 
-# Optionally, specify a gpg program to use explicitly 
-# gpg_program = "/bin/qubes-gpg-client-wrapper" # on Qubes OS 
+# Optionally, specify the gpg command to use 
+# gpg_program = "/bin/qubes-gpg-client-wrapper" # if Qubes OS 
 gpg_program = "/bin/gpg"
