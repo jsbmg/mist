@@ -41,7 +41,6 @@ Each `[section]` of the configuration defines a *profile*, under which a few var
 Download the directory to the remote filesystem:
 ```
 mist [PROFILE] --push
-
 ```
 "Install" the directory to a new local machine:
 ```
