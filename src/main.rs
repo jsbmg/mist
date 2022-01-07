@@ -174,12 +174,19 @@ async fn scp_write(bytes: &[u8], dest: &str, sshaddr: &str) -> std::io::Result<(
 }
 
 /// Download the remote archive and unpack it to a location on disk.
-async fn pull_remote(s: &mut Session, cfg: &Config)
+/// The temp argument determines whether the archive is being unpacked
+/// to a temporary directory or to the synced folder itself (e.g., if
+/// the folder is being pulled locally for the first time).
+async fn pull_remote(s: &mut Session, cfg: &Config, temp: bool)
 -> Result<(), Box<dyn std::error::Error>> {
     println!("Pulling from remote...");
     let tar = read_remote_file(s, &cfg.tar).await?;
     let tar = decrypt(&tar, &cfg.gpg_bin).await?;
-    unpack_tar(&tar, &cfg.temp).await?;
+    let dest = match temp {
+        true  => &cfg.temp,
+        false => &cfg.dir,
+    };
+    unpack_tar(&tar, dest).await?;
     Ok(())
 }
 
@@ -272,7 +279,7 @@ async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session)
             args.assumeyes) {
             return Ok(())
         }
-        pull_remote(s, cfg).await?;
+        pull_remote(s, cfg, false).await?;
     } else {
         let far_hash = read_remote_file(s, &cfg.tar_hash).await.ok();
         let near_hash = hash_metadata(&cfg.dir).await;
@@ -287,7 +294,7 @@ async fn run_mist(home: &Path, cfg: &Config, args: &Args, s: &mut Session)
                 return Ok(())
             }
         }
-        pull_remote(s, cfg).await?;
+        pull_remote(s, cfg, true).await?;
         match unison(&cfg.dir, &cfg.temp, args.assumeyes).await? {
             true  => (),
             false => {
