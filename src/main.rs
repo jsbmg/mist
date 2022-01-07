@@ -322,9 +322,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Missing configuration parameters");
 
     let mut s = SessionBuilder::default()
-            .known_hosts_check(KnownHosts::Strict) 
-            .control_directory("/tmp")
-            .connect(&cfg.sshaddr).await?;
+        .known_hosts_check(KnownHosts::Strict) 
+        .control_directory("/tmp")
+        .connect(&cfg.sshaddr).await?;
 
     run_mist(&home, &cfg, &args, &mut s).await?;
 
