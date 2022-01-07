@@ -8,7 +8,7 @@ use std::process::{ Command, Stdio };
 use clap::Parser;
 use flate2::{ Compression, write::GzEncoder, read::GzDecoder };
 use gpgme::{ Context, Protocol };
-use openssh::{ Session, KnownHosts };
+use openssh::{ Session, SessionBuilder, KnownHosts };
 use tar::{ Builder, Archive };
 use tokio::io::{ AsyncReadExt, AsyncWriteExt };
 use toml::Value;
@@ -321,7 +321,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Missing configuration parameters");
 
-    let mut s = Session::connect(&cfg.sshaddr, KnownHosts::Strict).await?;
+    let mut s = SessionBuilder::default()
+            .known_hosts_check(KnownHosts::Strict) 
+            .control_directory("/tmp")
+            .connect(&cfg.sshaddr).await?;
 
     run_mist(&home, &cfg, &args, &mut s).await?;
 
