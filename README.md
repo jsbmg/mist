@@ -1,6 +1,6 @@
 # Mist
 
-Mist is a directory syncer with GPG-encrypted remote storage. It is intended to be used as a secure way to share directories between computers that have access to a remote SSH server, such as Rsync.net, without leaving sensitive information such as documents or passwords in the open. It uses on two external programs, [GPGME](https://www.gnupg.org/software/gpgme/index.html) and [Unison](https://www.cis.upenn.edu/~bcpierce/unison/). 
+Mist is a directory syncer with GPG-encrypted remote storage. It is intended to be used as a secure way to share directories between computers that have access to a remote SSH server, such as Rsync.net, without leaving sensitive information such as documents or passwords in the open. It utilizies two external programs, [GPGME](https://www.gnupg.org/software/gpgme/index.html) and [Unison](https://www.cis.upenn.edu/~bcpierce/unison/). 
 
 **Advantages**:
 * Simple to use and secure
