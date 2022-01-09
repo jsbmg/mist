@@ -34,7 +34,7 @@ Mist reads a configuration file, which can be placed in the following locations:
 
 `$HOME/.mist.toml`
 
-Each `[section]` of the configuration defines a *profile*, under which a few variables are defined for that profile (such as the directory, and the ssh address, etc.). Multiple profiles can be configured for different directories. See `mist.toml` in the repository for an example. 
+Each `[section]` of the configuration defines a *profile*, under which a few variables are defined for that profile (such as the directory, and the ssh address, etc.). Multiple profiles can be configured for different directories. See `/examples/mist.toml` for an example configuration. 
 
 ## Usage
 
