@@ -19,6 +19,10 @@ gpg_id = "user@email.com"
 
 temp_folder = "/tmp/sync"
 
-# Optionally, specify the gpg command to use 
+# Optionally, specify the gpg command to use
 # gpg_program = "/bin/qubes-gpg-client-wrapper" # if Qubes OS 
 gpg_program = "/bin/gpg"
+
+# Optionally, specify whether to use symmetric encryption
+# If not specified, asymmetric will be used 
+symmetric = true # or false

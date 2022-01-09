@@ -1,7 +1,6 @@
 use std::path::{ Path, PathBuf };
 use std::fs::{ read_to_string };
 
-
 use toml::Value;
 
 pub struct Config {
@@ -12,6 +11,7 @@ pub struct Config {
     pub tar: String,
     pub tar_hash: String,
     pub gpg_bin: Option<Value>,
+    pub symmetric: bool,
 }
 
 /// Load the configuration file and unpack its values.
@@ -81,6 +81,22 @@ pub async fn load_configuration(home: &Path, profile: &str)
         .unwrap()
         .as_str()
         .ok_or("Can't parse 'temp_folder' value as str")?;
+
+    let is_symmetric = cfg
+        .get("symmetric");
+
+    let symmetric = match is_symmetric {
+        Some(x) => x.as_bool(),
+        None => Some(false),
+    };
+
+    let symmetric = match symmetric {
+        Some(x) => x,
+        None => { 
+            println!("Can't parse 'symmetric' as bool");
+            panic!()
+        },
+    };
     
     let tar = PathBuf::from(&tmp)
         .with_extension("tar.gz.gpg");
@@ -97,7 +113,7 @@ pub async fn load_configuration(home: &Path, profile: &str)
         .to_str().unwrap();
 
     let gpgbin = cfg
-        .get("gpg_program").to_owned(); 
+        .get("gpg_program").to_owned();
 
     let config = Config {
         dir: PathBuf::from(dir),
@@ -107,6 +123,8 @@ pub async fn load_configuration(home: &Path, profile: &str)
         tar: tar.to_string(),
         tar_hash: tar_hash.to_string(),
         gpg_bin: gpgbin.cloned(),
+        symmetric: symmetric,
     };
+
     Ok(config)
 }

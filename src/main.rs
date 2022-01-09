@@ -98,7 +98,7 @@ async fn create_tar(source: &Path) -> Result<Vec<u8>, std::io::Error> {
 }
 
 /// Encrypt data with the given GPG key.
-async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>)
+async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>, symmetric: bool)
 -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut ctx = Context::from_protocol(Protocol::OpenPgp)?;
     match gpgbin {
@@ -112,9 +112,14 @@ async fn encrypt(bytes: &[u8], gpgid: &str, gpgbin: &Option<Value>)
     ctx.set_armor(true);
     let key = ctx.get_key(gpgid)?;
     let mut b = Vec::new();
-    ctx.encrypt([&key], bytes, &mut b)?;
+    if symmetric {
+        ctx.encrypt_symmetric(bytes, &mut b)?;
+    } else {
+        ctx.encrypt([&key], bytes, &mut b)?;
+    }
     Ok(b)
 }
+
 
 /// Write bytes to a file on the remote system. 
 async fn write_remote_file(s: &mut Session, bytes: &[u8], dest: &str)
@@ -195,7 +200,7 @@ async fn push_remote(s: &mut Session, cfg: &Config, args: &Args)
 -> Result<(), Box<dyn std::error::Error>> {
     let hash = hash_metadata(&cfg.dir).await;
     let tar = create_tar(&cfg.dir).await?;
-    let tar = encrypt(&tar, &cfg.gpg_id, &cfg.gpg_bin).await?;
+    let tar = encrypt(&tar, &cfg.gpg_id, &cfg.gpg_bin, cfg.symmetric).await?;
     if args.scpwrite {
         scp_write(&tar, &cfg.tar, &cfg.sshaddr).await?;
     } else {
